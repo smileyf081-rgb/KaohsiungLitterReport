@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>高雄垃圾通報 Demo</title>
+<style>
+:root{--ink:#0f2a33;--sea:#b7dce4;--land:#e6eadf;--line:#c9d3cc;--acc:#ff5a1f;--panel:#fbfcfa;--mut:#5d7078;
+--s0:#ff5a1f;--s1:#d99a00;--s2:#2a7fbf;--s3:#2e9a62}
+@media (prefers-color-scheme:dark){:root{--ink:#e4eef0;--sea:#123642;--land:#1d2b2b;--line:#33474a;--panel:#14201f;--mut:#93a8ad}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:var(--ink);background:var(--panel);height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0;flex:1}
+h1 small{color:var(--mut);font-weight:400;margin-left:8px}
+button,select,textarea{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.btn:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+main{flex:1;display:grid;grid-template-columns:1fr 380px;min-height:0}
+#mapwrap{position:relative;background:var(--sea);min-height:0}
+svg{width:100%;height:100%;display:block;cursor:crosshair}
+.lbl{font-size:13px;fill:var(--mut);pointer-events:none}
+.sea{font-size:12px;fill:var(--mut);font-style:italic;pointer-events:none}
+aside{border-left:1px solid var(--line);overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;padding:7px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--panel)}
+label{font-weight:600;display:block;margin-bottom:4px}
+.cats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cats button{border:1px solid var(--line);background:transparent;border-radius:8px;padding:8px;cursor:pointer;text-align:left}
+.cats button[aria-pressed=true]{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+textarea{width:100%;border:1px solid var(--line);border-radius:8px;background:transparent;padding:8px;resize:vertical}
+#prev{max-width:100%;max-height:140px;border-radius:8px;display:none;margin-top:6px}
+.hint{color:var(--mut);font-size:13px}
+.warn{background:rgba(255,90,31,.12);border-left:3px solid var(--acc);padding:8px 10px;border-radius:4px;font-size:13px;display:none}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.item{border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer}
+.item.sel{border-color:var(--acc)}
+.item img{width:100%;max-height:110px;object-fit:cover;border-radius:6px;margin-top:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.stats div{border:1px solid var(--line);border-radius:8px;padding:6px}
+.stats b{display:block;font-size:22px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:8px;display:none;z-index:9;max-width:90%}
+.hide{display:none!important}
+@media (max-width:760px){main{grid-template-columns:1fr;grid-template-rows:42vh 1fr}aside{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <button class="btn" id="langBtn">EN</button>
+  <button class="btn" id="resetBtn"></button>
+</header>
+<main>
+  <div id="mapwrap">
+    <svg id="map" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Kaohsiung schematic map">
+      <defs><filter id="blur"><feGaussianBlur stdDeviation="14"/></filter></defs>
+      <rect width="600" height="600" fill="var(--sea)"/>
+      <path d="M160,0 L600,0 L600,600 L300,600 L330,520 L300,440 L250,400 L240,300 L215,270 L190,265 L170,230 L150,160 Z" fill="var(--land)" stroke="var(--line)" stroke-width="2"/>
+      <path d="M120,300 L150,290 L190,340 L205,430 L185,470 L150,440 L130,360 Z" fill="var(--land)" stroke="var(--line)" stroke-width="2"/>
+      <path d="M290,130 C280,170 285,210 262,245 C250,270 244,290 242,310" fill="none" stroke="var(--sea)" stroke-width="6" stroke-linecap="round"/>
+      <ellipse cx="250" cy="105" rx="22" ry="13" fill="var(--sea)"/>
+      <g class="lbl"><text x="215" y="70">左營 Zuoying</text><text x="225" y="135">蓮池潭</text><text x="305" y="215">三民 Sanmin</text><text x="178" y="215">鼓山</text><text x="110" y="420">旗津</text><text x="395" y="470">小港</text><text x="262" y="262">愛河</text></g>
+      <text class="sea" x="20" y="300">Taiwan Strait 台灣海峽</text>
+      <g id="heat" filter="url(#blur)"></g>
+      <g id="pins"></g>
+      <g id="draft"></g>
+    </svg>
+    <div class="hint" style="position:absolute;left:10px;bottom:6px" id="mapnote"></div>
+  </div>
+  <aside>
+    <div class="seg" role="group">
+      <button id="mCit" aria-pressed="true"></button>
+      <button id="mStaff" aria-pressed="false"></button>
+    </div>
+
+    <section id="cit">
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn pri" id="gps"></button>
+        <span class="hint" id="locInfo"></span>
+      </div>
+      <div class="warn" id="dup"></div>
+      <div style="margin:10px 0"><label id="lPhoto"></label>
+        <input type="file" id="photo" accept="image/*" capture="environment">
+        <img id="prev" alt="">
+      </div>
+      <div style="margin-bottom:10px"><label id="lCat"></label><div class="cats" id="cats"></div></div>
+      <div style="margin-bottom:10px"><label id="lNote"></label><textarea id="note" rows="2"></textarea></div>
+      <button class="btn pri" id="submit" style="width:100%;padding:10px"></button>
+      <div class="hint" id="queueInfo" style="margin-top:8px"></div>
+    </section>
+
+    <section id="staff" class="hide">
+      <div class="stats" id="stats"></div>
+      <div class="row" style="margin:10px 0"><label style="margin:0"><input type="checkbox" id="heatT"> <span id="lHeat"></span></label>
+        <select id="filter"></select></div>
+    </section>
+
+    <div id="list" style="display:flex;flex-direction:column;gap:8px"></div>
+  </aside>
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+const BOUNDS={lat0:22.72,lng0:120.22,k:3000};
+const toLL=(x,y)=>({lat:+(BOUNDS.lat0-y/BOUNDS.k).toFixed(5),lng:+(BOUNDS.lng0+x/(BOUNDS.k*1.111)).toFixed(5)});
+const toXY=(lat,lng)=>({x:(lng-BOUNDS.lng0)*BOUNDS.k*1.111,y:(BOUNDS.lat0-lat)*BOUNDS.k});
+const L={zh:{
+ title:'高雄垃圾通報',sub:'離線展示版',reset:'重設資料',cit:'市民通報',staff:'清潔人員',gps:'使用我的位置',
+ loc0:'點擊地圖放置標記,或使用定位',loc:'位置:',photo:'1. 拍照或選擇照片',cat:'2. 類別',note:'3. 補充說明(選填)',
+ submit:'送出通報',heat:'熱點圖',all:'全部狀態',need:'請先在地圖上選擇位置',needCat:'請選擇類別',
+ done:'已送出,追蹤編號 ',dup:n=>`附近已有 ${n} 筆未清理的通報,可能是同一處。仍要送出嗎?`,
+ outside:'定位不在高雄範圍,已改用示範位置(鹽埕)',nogps:'無法取得定位,請點擊地圖',
+ st:['已送出','已接收','處理中','已清理'],cats:['非法傾倒','垃圾桶滿溢','海岸/河岸垃圾','一般垃圾'],
+ stat:['未清理','已清理','平均小時'],mapnote:'示意地圖(非真實比例),完全離線運作',
+ q:n=>n?`${n} 筆通報等待網路,恢復後自動同步`:'',empty:'目前沒有通報',offline:'目前離線:通報已存在本機'},
+en:{
+ title:'Kaohsiung Litter Report',sub:'offline demo',reset:'Reset data',cit:'Citizen',staff:'Cleanup staff',gps:'Use my location',
+ loc0:'Tap the map to drop a pin, or use GPS',loc:'Location: ',photo:'1. Take or choose a photo',cat:'2. Category',note:'3. Note (optional)',
+ submit:'Submit report',heat:'Heatmap',all:'All statuses',need:'Pick a location on the map first',needCat:'Choose a category',
+ done:'Submitted. Tracking ID ',dup:n=>`${n} open report(s) already nearby, possibly the same spot. Submit anyway?`,
+ outside:'GPS is outside Kaohsiung; using a demo location (Yancheng)',nogps:'Could not get GPS. Tap the map instead',
+ st:['Submitted','Received','In progress','Cleaned'],cats:['Illegal dumping','Overflowing bin','Beach / river litter','General litter'],
+ stat:['Open','Cleaned','Avg. hours'],mapnote:'Schematic map (not to scale), works fully offline',
+ q:n=>n?`${n} report(s) waiting to sync when online`:'',empty:'No reports yet',offline:'Offline: reports are saved on this device'}};
+let lang='zh',mode='cit',draft=null,cat=null,photoData=null,sel=null,pendingDup=false;
+const $=id=>document.getElementById(id);
+const t=k=>L[lang][k];
+const COL=['var(--s0)','var(--s1)','var(--s2)','var(--s3)'];
+const H=3600e3;
+
+function load(){try{const r=localStorage.getItem('khl.reports');if(r)return JSON.parse(r)}catch(e){}return seed()}
+function save(){try{localStorage.setItem('khl.reports',JSON.stringify(R))}catch(e){toast('Storage full: photo not saved')}}
+function seed(){const now=Date.now();
+ const s=[[270,225,0,0,6],[255,300,1,1,30],[310,170,1,2,20],[175,235,2,3,50],[165,380,2,2,9],[420,455,0,0,3],[300,260,3,1,70],[230,115,3,0,2],[285,215,0,2,12],[200,270,1,3,40]];
+ return s.map((a,i)=>{const ll=toLL(a[0],a[1]);return{id:'KH-'+(1000+i),x:a[0],y:a[1],lat:ll.lat,lng:ll.lng,cat:a[2],st:a[3],note:'',photo:null,t:now-a[4]*H,done:a[3]==3?now-a[4]*H/3:null}})}
+let R=load();
+
+function toast(m){const e=$('toast');e.textContent=m;e.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>e.style.display='none',3200)}
+
+function applyLang(){
+ document.documentElement.lang=lang==='zh'?'zh-Hant':'en';
+ $('title').innerHTML=t('title')+'<small>'+t('sub')+'</small>';
+ $('resetBtn').textContent=t('reset');$('langBtn').textContent=lang==='zh'?'EN':'中文';
+ $('mCit').textContent=t('cit');$('mStaff').textContent=t('staff');$('gps').textContent=t('gps');
+ $('lPhoto').textContent=t('photo');$('lCat').textContent=t('cat');$('lNote').textContent=t('note');
+ $('submit').textContent=t('submit');$('lHeat').textContent=t('heat');$('mapnote').textContent=t('mapnote');
+ $('cats').innerHTML=t('cats').map((c,i)=>`<button data-i="${i}" aria-pressed="${cat===i}">${c}</button>`).join('');
+ $('filter').innerHTML='<option value="-1">'+t('all')+'</option>'+t('st').map((s,i)=>`<option value="${i}">${s}</option>`).join('');
+ render();
+}
+function render(){
+ $('locInfo').textContent=draft?t('loc')+draft.lat+', '+draft.lng:t('loc0');
+ const f=+$('filter').value;
+ const open=R.filter(r=>r.st<3).length,dn=R.filter(r=>r.done);
+ const avg=dn.length?(dn.reduce((a,r)=>a+(r.done-r.t),0)/dn.length/H).toFixed(1):'–';
+ $('stats').innerHTML=[open,dn.length,avg].map((v,i)=>`<div><b>${v}</b><span class="hint">${t('stat')[i]}</span></div>`).join('');
+ // pins
+ $('pins').innerHTML=R.map(r=>`<circle data-id="${r.id}" cx="${r.x}" cy="${r.y}" r="${sel===r.id?9:6}" fill="${COL[r.st]}" stroke="#fff" stroke-width="2" style="cursor:pointer"><title>${r.id}</title></circle>`).join('');
+ $('heat').innerHTML=$('heatT').checked&&mode==='staff'?R.filter(r=>r.st<3).map(r=>`<circle cx="${r.x}" cy="${r.y}" r="30" fill="#ff5a1f" opacity=".5"/>`).join(''):'';
+ $('draft').innerHTML=draft?`<circle cx="${draft.x}" cy="${draft.y}" r="22" fill="none" stroke="var(--acc)" stroke-width="2" stroke-dasharray="4 3"/><path d="M${draft.x},${draft.y} l-8,-20 a9,9 0 1 1 16,0z" fill="var(--acc)" stroke="#fff" stroke-width="2"/>`:'';
+ // list
+ const items=R.filter(r=>f<0||r.st===f).sort((a,b)=>b.t-a.t);
+ $('list').innerHTML=items.length?items.map(r=>{
+  const ago=Math.max(1,Math.round((Date.now()-r.t)/H));
+  const ctl=mode==='staff'?`<select data-st="${r.id}" aria-label="status">${t('st').map((s,i)=>`<option value="${i}" ${i===r.st?'selected':''}>${s}</option>`).join('')}</select>`:`<span>${t('st')[r.st]}</span>`;
+  return `<div class="item ${sel===r.id?'sel':''}" data-id="${r.id}"><div class="row" style="justify-content:space-between"><span><span class="dot" style="background:${COL[r.st]}"></span><b>${t('cats')[r.cat]}</b></span>${ctl}</div>
+  <div class="hint">${r.id} · ${ago}h · ${r.lat}, ${r.lng}</div>${r.note?`<div>${esc(r.note)}</div>`:''}${r.photo?`<img src="${r.photo}" alt="">`:''}</div>`}).join(''):`<div class="hint">${t('empty')}</div>`;
+ const q=navigator.onLine?0:R.filter(r=>r.q).length;
+ $('queueInfo').textContent=navigator.onLine?'':t('offline');
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function place(x,y){
+ draft={x,y,...toLL(x,y)};
+ const near=R.filter(r=>r.st<3&&Math.hypot(r.x-x,r.y-y)<18).length;
+ const w=$('dup');pendingDup=near>0;
+ w.style.display=near?'block':'none';if(near)w.textContent=L[lang].dup(near);
+ render();
+}
+$('map').addEventListener('click',e=>{
+ const c=e.target.closest('circle[data-id]');
+ if(c){sel=c.dataset.id;render();const el=document.querySelector(`.item[data-id="${sel}"]`);el&&el.scrollIntoView({block:'nearest'});return}
+ if(mode!=='cit')return;
+ const s=$('map'),p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;
+ const q=p.matrixTransform(s.getScreenCTM().inverse());place(Math.round(q.x),Math.round(q.y));
+});
+$('gps').onclick=()=>{
+ if(!navigator.geolocation){toast(t('nogps'));return}
+ navigator.geolocation.getCurrentPosition(pos=>{
+  const {x,y}=toXY(pos.coords.latitude,pos.coords.longitude);
+  if(x<0||y<0||x>600||y>600){toast(t('outside'));place(262,262)}else place(Math.round(x),Math.round(y));
+ },()=>{toast(t('nogps'))},{enableHighAccuracy:true,timeout:8000});
+};
+$('cats').onclick=e=>{const b=e.target.closest('button');if(!b)return;cat=+b.dataset.i;applyLang()};
+$('photo').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;
+ const img=new Image,u=URL.createObjectURL(f);
+ img.onload=()=>{const m=480,k=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement('canvas');
+  c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  photoData=c.toDataURL('image/jpeg',.6);$('prev').src=photoData;$('prev').style.display='block';URL.revokeObjectURL(u)};
+ img.src=u;
+};
+$('submit').onclick=()=>{
+ if(!draft){toast(t('need'));return}
+ if(cat===null){toast(t('needCat'));return}
+ const id='KH-'+(1000+Math.floor(Math.random()*9000));
+ R.push({id,x:draft.x,y:draft.y,lat:draft.lat,lng:draft.lng,cat,st:0,note:$('note').value.trim(),photo:photoData,t:Date.now(),done:null,q:!navigator.onLine});
+ save();toast(t('done')+id);
+ draft=null;cat=null;photoData=null;sel=id;$('note').value='';$('photo').value='';$('prev').style.display='none';$('dup').style.display='none';
+ applyLang();
+};
+$('list').addEventListener('change',e=>{
+ const id=e.target.dataset.st;if(!id)return;
+ const r=R.find(r=>r.id===id);r.st=+e.target.value;r.done=r.st===3?Date.now():null;save();render();
+});
+$('list').addEventListener('click',e=>{
+ if(e.target.tagName==='SELECT')return;
+ const it=e.target.closest('.item');if(it){sel=it.dataset.id;render()}
+});
+function setMode(m){mode=m;
+ $('mCit').setAttribute('aria-pressed',m==='cit');$('mStaff').setAttribute('aria-pressed',m==='staff');
+ $('cit').classList.toggle('hide',m!=='cit');$('staff').classList.toggle('hide',m!=='staff');
+ if(m==='staff'){draft=null}render();
+}
+$('mCit').onclick=()=>setMode('cit');$('mStaff').onclick=()=>setMode('staff');
+$('heatT').onchange=render;$('filter').onchange=render;
+$('langBtn').onclick=()=>{lang=lang==='zh'?'en':'zh';applyLang()};
+$('resetBtn').onclick=()=>{try{localStorage.removeItem('khl.reports')}catch(e){}R=seed();sel=null;render()};
+addEventListener('online',()=>{R.forEach(r=>delete r.q);save();render();toast('Synced')});
+addEventListener('offline',render);
+applyLang();
+</script>
+</body>
+</html>
